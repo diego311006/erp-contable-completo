@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Guía: APIs REST con Node, Express y Vue 3</title>
+<style>
+@page { size: A4; margin: 18mm 16mm 18mm; }
+:root { --ink:#17324d; --blue:#146c94; --teal:#0d9488; --soft:#eef6f8; --line:#c9d9df; --red:#b42318; }
+* { box-sizing:border-box; }
+body { color:#263746; font-family: "Segoe UI", Arial, sans-serif; font-size:10.5pt; line-height:1.45; }
+h1 { color:var(--ink); font-size:27pt; margin:0 0 8px; }
+h2 { color:var(--blue); border-bottom:2px solid var(--teal); padding-bottom:4px; margin-top:25px; break-after:avoid; }
+h3 { color:var(--ink); margin-top:17px; break-after:avoid; }
+.cover { min-height:240mm; display:flex; flex-direction:column; justify-content:center; border-left:12px solid var(--teal); padding:22mm; background:linear-gradient(135deg,#eef6f8,#fff); }
+.cover .eyebrow { color:var(--teal); font-weight:700; letter-spacing:1px; text-transform:uppercase; }
+.cover h1 { font-size:34pt; line-height:1.08; }
+.cover p { font-size:14pt; max-width:145mm; }
+.badge { display:inline-block; background:var(--blue); color:white; padding:6px 10px; border-radius:4px; font-weight:600; margin-top:18px; }
+.callout { background:var(--soft); border-left:4px solid var(--teal); padding:9px 12px; margin:12px 0; break-inside:avoid; }
+.warning { border-left-color:#d97706; background:#fff8e7; }
+code { font-family:Consolas, "Courier New", monospace; color:#8b2c2c; }
+pre { background:#172333; color:#eef6f8; padding:12px; border-radius:5px; overflow-wrap:anywhere; white-space:pre-wrap; font:8.4pt/1.35 Consolas, "Courier New", monospace; break-inside:avoid; }
+table { width:100%; border-collapse:collapse; margin:10px 0 15px; break-inside:avoid; }
+th { background:var(--blue); color:white; text-align:left; }
+th,td { border:1px solid var(--line); padding:6px 8px; vertical-align:top; }
+li { margin:3px 0; }
+.page-break { break-before:page; }
+.small { color:#5c6c75; font-size:9pt; }
+.flow { display:flex; gap:10px; align-items:center; margin:14px 0; }
+.flow div { flex:1; padding:12px; border:1px solid var(--line); background:#f7fbfc; text-align:center; font-weight:600; }
+.flow b { color:var(--teal); font-size:18pt; }
+</style>
+</head>
+<body>
+<section class="cover">
+<div class="eyebrow">Guía práctica | ERP Contable</div>
+<h1>APIs REST con Node, Express y Vue 3</h1>
+<p>Programación asincrónica ES6+, consumo de servicios con Fetch/Axios, componentes y reactividad.</p>
+<div class="flow"><div>Vue + Vuetify<br><span class="small">localhost:5173</span></div><b>⇄</b><div>Express + JSON<br><span class="small">localhost:3000</span></div></div>
+<span class="badge">Contactos y movimientos contables</span>
+<p class="small">Material didáctico para transformar el proyecto erp-contable. Los datos iniciales son simulados y viven en memoria.</p>
+</section>
+
+<h2>1. Resultado y arquitectura</h2>
+<p>El proyecto tendrá dos aplicaciones independientes. Vue muestra la interfaz; Express recibe solicitudes, valida datos y responde JSON.</p>
+<pre>VUEBASICO/
+├── erp-contable/       # Frontend Vue + Vite
+└── erp-api/            # Backend Node + Express</pre>
+<div class="callout"><strong>Regla de terminal:</strong> ejecuta cada comando dentro de la carpeta que contiene el <code>package.json</code> correspondiente.</div>
+
+<h2>2. Crear el backend Express</h2>
+<ol>
+<li>Abre CMD y entra en la carpeta principal.</li>
+<li>Crea el backend y prepara npm.</li>
+<li>Instala Express, CORS y Nodemon.</li>
+</ol>
+<pre>cd /d "C:\Users\jdcad\Materias\Talleres\interfaces web 2026-2\PROYECTO\VUEBASICO"
+mkdir erp-api
+cd erp-api
+npm init -y
+npm install express cors
+npm install --save-dev nodemon</pre>
+<p>En el <code>package.json</code> del backend agrega:</p>
+<pre>"scripts": {
+  "start": "node server.js",
+  "dev": "nodemon server.js"
+}</pre>
+<p>Crea <code>server.js</code>:</p>
+<pre>import express from 'express'
+import cors from 'cors'
+
+const app = express()
+const PORT = 3000
+
+app.use(cors())
+app.use(express.json())
+
+let contactos = [
+  { id: 1, nombre: 'Ana Torres', correo: 'ana@erp.test', tipo: 'Cliente' },
+  { id: 2, nombre: 'Luis Perez', correo: 'luis@erp.test', tipo: 'Proveedor' }
+]
+
+let movimientos = [
+  { id: 1, concepto: 'Venta de servicios', tipo: 'Ingreso', monto: 1500 },
+  { id: 2, concepto: 'Compra de insumos', tipo: 'Egreso', monto: 450 }
+]
+
+app.get('/api/contactos', (req, res) => {
+  res.status(200).json(contactos)
+})
+
+app.get('/api/contactos/:id', (req, res) => {
+  const contacto = contactos.find(item => item.id === Number(req.params.id))
+  if (!contacto) return res.status(404).json({ mensaje: 'Contacto no encontrado' })
+  res.status(200).json(contacto)
+})
+
+app.post('/api/contactos', (req, res) => {
+  const { nombre, correo, tipo } = req.body
+  if (!nombre || !correo || !tipo) {
+    return res.status(400).json({ mensaje: 'Faltan datos obligatorios' })
+  }
+  const nuevoContacto = { id: Date.now(), nombre, correo, tipo }
+  contactos.push(nuevoContacto)
+  res.status(201).json(nuevoContacto)
+})
+
+app.delete('/api/contactos/:id', (req, res) => {
+  const indice = contactos.findIndex(item => item.id === Number(req.params.id))
+  if (indice === -1) return res.status(404).json({ mensaje: 'Contacto no encontrado' })
+  contactos.splice(indice, 1)
+  res.status(204).send()
+})
+
+app.get('/api/movimientos', (req, res) => {
+  res.status(200).json(movimientos)
+})
+
+app.listen(PORT, () => {
+  console.log(`API disponible en http://localhost:${PORT}`)
+})</pre>
+<div class="callout"><strong>Qué hacen los middlewares:</strong> <code>cors()</code> permite la comunicación entre puertos distintos y <code>express.json()</code> convierte el body JSON en <code>req.body</code>.</div>
+
+<h2>3. Ejecutar y probar Express</h2>
+<pre>cd /d "C:\Users\jdcad\Materias\Talleres\interfaces web 2026-2\PROYECTO\VUEBASICO\erp-api"
+npm run dev</pre>
+<p>Debe aparecer <code>API disponible en http://localhost:3000</code>. Mantén esa terminal abierta.</p>
+<table><tr><th>Método</th><th>Endpoint</th><th>Uso</th><th>Éxito</th></tr>
+<tr><td>GET</td><td>/api/contactos</td><td>Listar contactos</td><td>200</td></tr>
+<tr><td>GET</td><td>/api/contactos/1</td><td>Consultar uno</td><td>200</td></tr>
+<tr><td>POST</td><td>/api/contactos</td><td>Crear contacto</td><td>201</td></tr>
+<tr><td>PUT</td><td>/api/contactos/1</td><td>Actualizar contacto</td><td>200</td></tr>
+<tr><td>DELETE</td><td>/api/contactos/1</td><td>Eliminar contacto</td><td>204</td></tr>
+<tr><td>GET</td><td>/api/movimientos</td><td>Listar movimientos</td><td>200</td></tr></table>
+
+<h3>Pruebas en Postman o Insomnia</h3>
+<p>Para crear un contacto usa <code>POST http://localhost:3000/api/contactos</code>, header <code>Content-Type: application/json</code> y este body:</p>
+<pre>{
+  "nombre": "Maria Lopez",
+  "correo": "maria@erp.test",
+  "tipo": "Cliente"
+}</pre>
+<p>Prueba también un ID inexistente para observar <code>404 Not Found</code> y un body incompleto para observar <code>400 Bad Request</code>.</p>
+
+<h2 class="page-break">4. Programación asincrónica ES6+</h2>
+<p>Una solicitud HTTP tarda un tiempo impredecible. JavaScript usa promesas para continuar sin congelar la interfaz.</p>
+<h3>Promesas</h3>
+<pre>fetch('http://localhost:3000/api/contactos')
+  .then(respuesta => respuesta.json())
+  .then(datos => console.log(datos))
+  .catch(error => console.error(error))</pre>
+<ul><li><strong>pending:</strong> esperando.</li><li><strong>fulfilled:</strong> terminó correctamente.</li><li><strong>rejected:</strong> terminó con error.</li></ul>
+<h3>async y await</h3>
+<pre>async function cargarContactos() {
+  const respuesta = await fetch('http://localhost:3000/api/contactos')
+  const datos = await respuesta.json()
+  return datos
+}</pre>
+<p><code>await</code> pausa esa función asincrónica, pero no bloquea todo el navegador.</p>
+<h3>try/catch/finally</h3>
+<pre>async function cargarContactos() {
+  cargando.value = true
+  error.value = ''
+  try {
+    const respuesta = await fetch('http://localhost:3000/api/contactos')
+    if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`)
+    contactos.value = await respuesta.json()
+  } catch (problema) {
+    error.value = problema.message
+  } finally {
+    cargando.value = false
+  }
+}</pre>
+<div class="callout warning"><strong>Importante:</strong> Fetch no rechaza automáticamente la promesa con un 404 o 500. Comprueba siempre <code>respuesta.ok</code>.</div>
+
+<h2>5. Consumir la API desde Vue</h2>
+<p>En <code>Clientes.vue</code>, el estado y la carga pueden organizarse con Composition API:</p>
+<pre>&lt;script setup&gt;
+import { onMounted, ref } from 'vue'
+
+const contactos = ref([])
+const cargando = ref(false)
+const error = ref('')
+
+async function cargarContactos() {
+  cargando.value = true
+  error.value = ''
+  try {
+    const respuesta = await fetch('http://localhost:3000/api/contactos')
+    if (!respuesta.ok) throw new Error('No se pudieron cargar los contactos')
+    contactos.value = await respuesta.json()
+  } catch (problema) {
+    error.value = problema.message
+  } finally {
+    cargando.value = false
+  }
+}
+
+onMounted(cargarContactos)
+&lt;/script&gt;
+
+&lt;template&gt;
+  &lt;p v-if="cargando"&gt;Cargando...&lt;/p&gt;
+  &lt;p v-else-if="error"&gt;{{ error }}&lt;/p&gt;
+  &lt;ul v-else&gt;
+    &lt;li v-for="contacto in contactos" :key="contacto.id"&gt;
+      {{ contacto.nombre }} - {{ contacto.correo }}
+    &lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/template&gt;</pre>
+<p>La asignación <code>contactos.value = datos</code> cambia el estado reactivo y Vue actualiza el <code>v-for</code> automáticamente.</p>
+
+<h2>6. Crear datos y comparar Fetch/Axios</h2>
+<pre>const nuevoContacto = ref({ nombre: '', correo: '', tipo: 'Cliente' })
+
+async function crearContacto() {
+  const respuesta = await fetch('http://localhost:3000/api/contactos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(nuevoContacto.value)
+  })
+  if (!respuesta.ok) throw new Error('No se pudo crear el contacto')
+  const creado = await respuesta.json()
+  contactos.value.push(creado)
+}</pre>
+<table><tr><th>Fetch</th><th>Axios</th></tr><tr><td>Incluido en el navegador.</td><td>Se instala con <code>npm install axios</code>.</td></tr><tr><td>Hay que revisar <code>respuesta.ok</code>.</td><td>Interpreta JSON y errores HTTP con comodidad.</td></tr><tr><td>Buena opción para empezar.</td><td>Útil con muchas rutas, interceptores y configuración común.</td></tr></table>
+<pre>import axios from 'axios'
+const api = axios.create({ baseURL: 'http://localhost:3000/api' })
+const respuesta = await api.get('/contactos')
+contactos.value = respuesta.data</pre>
+
+<h2>7. Componentes y reactividad</h2>
+<p>Divide la interfaz por responsabilidades: <code>ContactoForm.vue</code>, <code>ContactosTabla.vue</code>, <code>MovimientoForm.vue</code> y <code>TarjetaKPI.vue</code>.</p>
+<ul><li><code>ref</code>: listas, textos y booleanos reactivos.</li><li><code>computed</code>: valores derivados y calculados.</li><li><code>onMounted</code>: carga inicial.</li><li><strong>Props:</strong> datos del padre al hijo.</li><li><strong>Eventos:</strong> acciones del hijo al padre.</li></ul>
+<pre>const totalIngresos = computed(() => {
+  return movimientos.value
+    .filter(movimiento => movimiento.tipo === 'Ingreso')
+    .reduce((total, movimiento) => total + movimiento.monto, 0)
+})</pre>
+<p>Cuando cambia <code>movimientos.value</code>, Vue recalcula el total y actualiza las tarjetas del dashboard.</p>
+
+<h2>8. Orden de trabajo y comprobación</h2>
+<p>Abre dos terminales:</p>
+<pre># Terminal 1: backend
+cd /d "C:\Users\jdcad\Materias\Talleres\interfaces web 2026-2\PROYECTO\VUEBASICO\erp-api"
+npm run dev
+
+# Terminal 2: frontend
+cd /d "C:\Users\jdcad\Materias\Talleres\interfaces web 2026-2\PROYECTO\VUEBASICO\erp-contable"
+npm run dev</pre>
+<ul><li>La API responde en <code>http://localhost:3000</code>.</li><li>Vue responde en <code>http://localhost:5173</code>.</li><li>La lista de contactos llega desde Express.</li><li>Un error de red se muestra en la interfaz.</li><li>Crear un contacto actualiza la tabla reactivamente.</li><li>Los movimientos alimentan los totales con <code>computed</code>.</li></ul>
+
+<h2>9. Errores frecuentes</h2>
+<table><tr><th>Error</th><th>Solución</th></tr><tr><td><code>ENOENT package.json</code></td><td>Entra en <code>erp-api</code> o <code>erp-contable</code>.</td></tr><tr><td>CORS</td><td>Confirma <code>app.use(cors())</code> y que Express esté encendido.</td></tr><tr><td>Failed to fetch</td><td>Revisa puerto, URL y servidor.</td></tr><tr><td>Vue no actualiza</td><td>Usa <code>contactos.value</code> si es un <code>ref</code>.</td></tr><tr><td>Datos desaparecen</td><td>Es normal: están en memoria; luego agrega base de datos.</td></tr></table>
+
+<div class="callout"><strong>Actividad:</strong> crea dos contactos, carga la lista desde Vue, registra un ingreso y un egreso, calcula el saldo con <code>computed</code> y simula apagar Express para mostrar un mensaje de error.</div>
+<p class="small">Fin de la guía | ERP Contable con Vue 3 y Express</p>
+</body>
+</html>
